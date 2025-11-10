@@ -19,27 +19,73 @@ Quick sanity checks:
 - (placeholder) mutation & survival scaffolding
 
 ## Load TCGA-LUAD (via TCGAbiolinks)
-```{r tcga-download, eval=FALSE}
+```{r tcga-download, eval=TRUE}
 library(TCGAbiolinks)
+library(SummarizedExperiment)
 
-query.exp <- GDCquery(project = "TCGA-LUAD",
-                      data.category = "Transcriptome Profiling",
-                      data.type = "Gene Expression Quantification",
-                      workflow.type = "HTSeq - FPKM")
-GDCdownload(query.exp)
-dat.exp <- GDCprepare(query.exp)   # SummarizedExperiment
+dest <- file.path(getwd(), "GDCdata")  # cache inside project
+
+query.exp <- GDCquery(
+  project = "TCGA-LUAD",
+  data.category = "Transcriptome Profiling",
+  data.type = "Gene Expression Quantification",
+  workflow.type = "STAR - Counts"   # <- updated pipeline
+)
+
+GDCdownload(query.exp, method = "api", files.per.chunk = 10, directory = dest)
+dat.exp <- GDCprepare(query.exp, directory = dest)   # SummarizedExperiment (raw counts)
 ```
 
 ## EGFR expression distribution (placeholder)
-```{r egfr-expression, eval=FALSE}
-library(SummarizedExperiment); library(tidyverse)
-expr <- assay(dat.exp)
-genes <- rowData(dat.exp)$external_gene_name
-egfr_row <- which(genes == "EGFR")
-egfr_vec <- as.numeric(expr[egfr_row, ])
-tibble(EGFR_FPKM = egfr_vec) |>
-  ggplot(aes(EGFR_FPKM)) + geom_histogram(bins = 40) +
-  labs(title = "EGFR expression — TCGA-LUAD", x = "FPKM")
+```{r egfr-expression, eval=TRUE}
+library(SummarizedExperiment)
+library(tidyverse)
+
+# 1) Pull the assay and row metadata
+expr <- assay(dat.exp)                          # genes x samples counts (matrix)
+rd   <- as.data.frame(rowData(dat.exp))        # row annotations
+
+# 2) Figure out which column holds the gene symbols
+#    (try gene_name, then external_gene_name, then fall back to gene_id)
+if ("gene_name" %in% names(rd)) {
+  genes <- rd$gene_name
+} else if ("external_gene_name" %in% names(rd)) {
+  genes <- rd$external_gene_name
+} else if ("gene_id" %in% names(rd)) {
+  # strip version suffix from Ensembl IDs if present
+  genes <- gsub("\\..*$", "", rd$gene_id)
+} else {
+  stop("Could not find a gene symbol column in rowData(dat.exp).")
+}
+
+# Quick sanity check: what columns do we have?
+# print(names(rd))
+
+# 3) Locate EGFR (symbol) or its Ensembl ID
+egfr_row <- which(genes == "EGFR" |
+                  genes == "ENSG00000146648")  # EGFR Ensembl ID (no version)
+
+if (length(egfr_row) == 0) {
+  stop("EGFR not found in rowData; check names(rd) to see available columns.")
+}
+
+# 4) Extract counts and plot log10(counts + 1)
+egfr_counts <- as.numeric(expr[egfr_row, ])
+
+p <- tibble(EGFR_counts_log10 = log10(egfr_counts + 1)) %>%
+  ggplot(aes(EGFR_counts_log10)) +
+  geom_histogram(aes(y = ..density..), bins = 40, fill = "grey80", color = "black") +
+  geom_density(color = "red", linewidth = 1.2) +
+  labs(
+    title = "EGFR expression — TCGA-LUAD (STAR counts, log10 + 1)",
+    x = "log10(counts + 1)",
+    y = "Density"
+  )
+
+print(p)
+
+ggsave("../figures/egfr_counts_hist_luad.png",
+       plot = p, width = 6, height = 4, dpi = 300)
 ```
 
 ## Mutation placeholder
