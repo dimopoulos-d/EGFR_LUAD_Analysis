@@ -10,3 +10,48 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 source("../scripts/01_setup.R")
+```
+
+# Aim
+Quick sanity checks:
+- confirm TCGA-LUAD sample counts
+- inspect EGFR expression distribution
+- (placeholder) mutation & survival scaffolding
+
+## Load TCGA-LUAD (via TCGAbiolinks)
+```{r tcga-download, eval=FALSE}
+library(TCGAbiolinks)
+
+query.exp <- GDCquery(project = "TCGA-LUAD",
+                      data.category = "Transcriptome Profiling",
+                      data.type = "Gene Expression Quantification",
+                      workflow.type = "HTSeq - FPKM")
+GDCdownload(query.exp)
+dat.exp <- GDCprepare(query.exp)   # SummarizedExperiment
+```
+
+## EGFR expression distribution (placeholder)
+```{r egfr-expression, eval=FALSE}
+library(SummarizedExperiment); library(tidyverse)
+expr <- assay(dat.exp)
+genes <- rowData(dat.exp)$external_gene_name
+egfr_row <- which(genes == "EGFR")
+egfr_vec <- as.numeric(expr[egfr_row, ])
+tibble(EGFR_FPKM = egfr_vec) |>
+  ggplot(aes(EGFR_FPKM)) + geom_histogram(bins = 40) +
+  labs(title = "EGFR expression — TCGA-LUAD", x = "FPKM")
+```
+
+## Mutation placeholder
+```{r mutation, eval=FALSE}
+# library(maftools)
+# luad_maf <- GDCquery_Maf("LUAD", pipelines = "mutect2")
+```
+
+## Survival placeholder
+```{r survival, eval=FALSE}
+# library(survival); library(survminer)
+# clin <- as.data.frame(colData(dat.exp))
+# fit <- survfit(Surv(days_to_death, vital_status == "Dead") ~ 1, data = clin)
+# ggsurvplot(fit, data = clin)
+```
