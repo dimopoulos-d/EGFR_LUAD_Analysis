@@ -1,0 +1,13 @@
+---
+title: "EGFR LUAD — Basics"
+author: "Dimos"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+source("../scripts/01_setup.R")
+
